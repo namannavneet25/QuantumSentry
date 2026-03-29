@@ -1,32 +1,165 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-  <title>TLS Scanner Dashboard</title>
-  <script src="https://cdn.tailwindcss.com"></script>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>QuantumSentry — PQC Readiness Scanner</title>
+  <meta name="description" content="Post-Quantum Cryptography readiness scanner. Analyse TLS connections and certificates for quantum vulnerability." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="style.css" />
+  <!-- jsPDF for PDF certificate export -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 </head>
+<body>
 
-<body class="bg-gray-100 min-h-screen">
+  <!-- Background -->
+  <div class="bg-grid"></div>
 
-  <div class="max-w-5xl mx-auto p-6">
+  <!-- Header -->
+  <header class="header">
+    <div class="header-inner">
+      <div class="logo">
+        <span class="logo-icon">⚛</span>
+        <div>
+          <span class="logo-title">QuantumSentry</span>
+          <span class="logo-sub">PQC Readiness Scanner</span>
+        </div>
+      </div>
+      <div style="display:flex;gap:10px;align-items:center;">
+        <button class="export-btn" onclick="toggleHistory()" id="historyBtn" title="View scan history">🕑 History</button>
+        <button class="export-btn" onclick="openAudit()"   id="auditBtn"   title="View audit trail">📋 Audit Log</button>
+        <div class="header-badge">
+          <span class="pulse"></span>
+          Live Scanner
+        </div>
+      </div>
+    </div>
+  </header>
 
-    <h1 class="text-3xl font-bold mb-6">🔐 TLS Scanner Dashboard</h1>
+  <!-- Main -->
+  <main class="main">
 
-    <!-- INPUT -->
-    <div class="flex gap-2 mb-6">
-      <input id="target" class="flex-1 p-3 border rounded" placeholder="example.com:443"/>
-      <button onclick="scan()" class="bg-blue-600 text-white px-6 py-3 rounded">
-        Scan
-      </button>
+    <!-- Hero -->
+    <section class="hero">
+      <h1 class="hero-title">Is your TLS <span class="gradient-text">quantum-safe</span>?</h1>
+      <p class="hero-sub">Scan any HTTPS endpoint to analyse its cryptographic posture against post-quantum threats. Generates a full CBOM report.</p>
+    </section>
+
+    <!-- Scan Input -->
+    <section class="scan-box">
+      <div class="scan-input-row">
+        <div class="input-wrap">
+          <span class="input-icon">🌐</span>
+          <input id="target" type="text" placeholder="example.com:443" autocomplete="off" spellcheck="false" />
+        </div>
+        <button id="scanBtn" onclick="scan()">
+          <span id="btnText">Scan</span>
+          <span id="btnLoader" class="btn-loader hidden"></span>
+        </button>
+      </div>
+      <div class="quick-targets">
+        <span class="qt-label">Quick:</span>
+        <button class="qt-btn" onclick="quickScan('google.com:443')">google.com</button>
+        <button class="qt-btn" onclick="quickScan('cloudflare.com:443')">cloudflare.com</button>
+        <button class="qt-btn" onclick="quickScan('github.com:443')">github.com</button>
+      </div>
+    </section>
+
+    <!-- Bulk Scan Section -->
+    <section class="bulk-box" id="bulkBox">
+      <div class="bulk-header" onclick="toggleBulk()">
+        <span>⚡ Bulk Scan <span class="bulk-badge">Multi-target</span></span>
+        <span id="bulkChevron" style="font-size:.8rem;color:var(--muted)">▼ expand</span>
+      </div>
+      <div id="bulkBody" class="hidden">
+        <p class="bulk-hint">Enter one <code>host:port</code> per line (max 20). Scans run 3 at a time.</p>
+        <textarea id="bulkTargets" class="bulk-textarea"
+          placeholder="google.com:443&#10;cloudflare.com:443&#10;github.com:443"
+          rows="5" spellcheck="false"></textarea>
+        <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:10px;">
+          <button class="scan-btn-bulk" onclick="bulkScan()">⚡ Run Bulk Scan</button>
+          <label class="export-btn" style="cursor:pointer;" title="Upload CSV/TXT of targets">
+            📂 Upload CSV
+            <input type="file" accept=".csv,.txt" id="csvUpload" style="display:none" onchange="loadCSV(this)" />
+          </label>
+          <button class="export-btn" onclick="downloadBulkJSON()" id="bulkDownloadBtn" style="display:none">⬇ Export JSON</button>
+          <button class="export-btn" onclick="clearBulkResults()" id="clearBulkBtn" style="display:none">✕ Clear</button>
+        </div>
+        <!-- Progress -->
+        <div id="bulkProgress" class="bulk-progress hidden">
+          <div class="bulk-progress-bar" id="bulkProgressBar" style="width:0%"></div>
+          <span id="bulkProgressText" class="bulk-progress-text">0 / 0</span>
+        </div>
+        <!-- Results table -->
+        <div id="bulkResults"></div>
+      </div>
+    </section>
+
+    <!-- Status -->
+    <div id="status" class="status-bar hidden"></div>
+
+    <!-- History Panel (collapsible) -->
+    <div id="historyPanel" class="history-panel hidden">
+      <div class="history-header">
+        <span>🕑 Scan History</span>
+        <button class="export-btn" onclick="loadHistory()">↺ Refresh</button>
+      </div>
+      <div id="historyList" class="history-list">
+        <span style="color:var(--muted);font-size:.85rem">Loading…</span>
+      </div>
     </div>
 
-    <!-- STATUS -->
-    <div id="status" class="mb-4 text-gray-600"></div>
+    <!-- Results -->
+    <div id="result"></div>
 
-    <!-- RESULTS -->
-    <div id="result" class="space-y-6"></div>
-
-  </div>
+  </main>
 
   <script src="script.js"></script>
+
+  <!-- Login Modal -->
+  <div id="loginModal" class="modal-overlay" style="z-index:2000;">
+    <div class="modal-box" style="max-width:420px;">
+      <div style="text-align:center;margin-bottom:24px;">
+        <div style="font-size:2rem;margin-bottom:8px">⛛️</div>
+        <div style="font-size:1.2rem;font-weight:700;color:var(--text)">QuantumSentry</div>
+        <div style="font-size:.8rem;color:var(--muted);margin-top:4px">Sign in to continue</div>
+      </div>
+      <div id="loginError" class="login-error hidden"></div>
+      <div class="login-field">
+        <label class="login-label">Username</label>
+        <input id="loginUser" type="text" class="login-input" placeholder="admin" autocomplete="username" />
+      </div>
+      <div class="login-field">
+        <label class="login-label">Password</label>
+        <input id="loginPass" type="password" class="login-input" placeholder="••••••••" autocomplete="current-password" />
+      </div>
+      <button class="scan-btn-bulk" style="width:100%;margin-top:8px;padding:12px" onclick="doLogin()" id="loginBtn">Sign In</button>
+      <div style="margin-top:16px;padding:12px;background:var(--bg-soft);border-radius:8px;font-size:.75rem;color:var(--muted);">
+        <strong style="color:var(--text)">Default accounts:</strong><br/>
+        admin / QuantumSentry@Admin2026<br/>
+        auditor / QuantumSentry@Audit2026<br/>
+        viewer / QuantumSentry@View2026
+      </div>
+    </div>
+  </div>
+
+  <!-- Audit Log Modal -->
+  <div id="auditModal" class="modal-overlay hidden" onclick="closeAudit(event)">
+    <div class="modal-box">
+      <div class="modal-header">
+        <span>📋 Audit Trail</span>
+        <div style="display:flex;gap:8px;">
+          <button class="export-btn" onclick="downloadAuditCSV()" title="Export audit log as CSV">⬇ CSV</button>
+          <button class="export-btn" onclick="closeAuditBtn()" style="color:#ef4444">✕ Close</button>
+        </div>
+      </div>
+      <p style="font-size:.78rem;color:var(--muted);margin:0 0 12px">All API actions are automatically logged for compliance traceability.</p>
+      <div id="auditTableWrap" class="audit-table-wrap">
+        <span style="color:var(--muted);font-size:.85rem">Loading…</span>
+      </div>
+    </div>
+  </div>
+
 </body>
 </html>

@@ -1,4 +1,29 @@
-./scanner/_scannerv1.go
-./scanner/scanner
-./backend/server
-./scanner/utility
+# QuantumSentry — Generated files
+
+# ── Go binaries ──────────────────────────────────────────────────────────────
+*.exe
+*.exe~
+server
+scanner
+iface_lister
+
+# ── SQLite database (runtime data — not for version control) ─────────────────
+*.db
+*.db-shm
+*.db-wal
+
+# ── Temp scan artifacts ───────────────────────────────────────────────────────
+scan_result.json
+*.log
+
+# ── Go build cache ────────────────────────────────────────────────────────────
+vendor/
+
+# ── Editor / OS artifacts ─────────────────────────────────────────────────────
+.vscode/
+.idea/
+*.DS_Store
+Thumbs.db
+
+# ── Old / draft files ─────────────────────────────────────────────────────────
+_scannerv1.go
